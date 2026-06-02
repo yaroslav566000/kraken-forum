@@ -127,32 +127,14 @@
 <div id="toastMsg" class="success-toast"></div>
 
 <script>
-    // ==================== НАСТРОЙКИ ====================
     const GIST_RAW_URL = 'https://gist.githubusercontent.com/yaroslav566000/b9750ba7f8527016bbf0101deef1c1fc/raw/223139d74e7f7d793113f257a36030448516ff3a/kraken_data.json';
     const GIST_API_URL = 'https://api.github.com/gists/b9750ba7f8527016bbf0101deef1c1fc';
-    const TOKEN_GIST_URL = 'https://gist.githubusercontent.com/yaroslav566000/e5a0a3f08b7331a2a39d182e967cc0b4/raw/adf63cc289cfb66eaeef64e76778f76879e90f14/token.json';
+    const GITHUB_TOKEN = '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';
     
-    let GITHUB_TOKEN = '';
     let currentUser = null;
     let users = [];
     let forumTopics = [], biographies = [], complaints = [], organizations = [];
     let isSyncing = false;
-    let isTokenLoaded = false;
-
-    async function loadToken() {
-        try {
-            const response = await fetch(TOKEN_GIST_URL);
-            if (response.ok) {
-                const data = await response.json();
-                GITHUB_TOKEN = data.token;
-                isTokenLoaded = true;
-                return true;
-            }
-        } catch(e) {
-            console.warn("Не удалось загрузить токен");
-        }
-        return false;
-    }
 
     function showToast(msg, isError = false) {
         const toast = document.getElementById("toastMsg");
@@ -179,12 +161,6 @@
     }
 
     async function saveToGist() {
-        if (!GITHUB_TOKEN) {
-            console.warn("Нет токена, сохранение локально");
-            saveToLocal();
-            return false;
-        }
-        
         updateSyncStatus('syncing', 'Сохранение...');
         const allData = { users, forumTopics, biographies, complaints, organizations, lastUpdate: Date.now() };
         const content = JSON.stringify(allData, null, 2);
@@ -209,22 +185,22 @@
             });
             
             if (updateResponse.ok) {
-                updateSyncStatus('online', 'Синхронизировано');
-                showToast("✅ Данные сохранены в Gist");
+                updateSyncStatus('online', 'Синхронизирано');
+                showToast("✅ Збережено в Gist");
                 return true;
             } else {
-                throw new Error("Ошибка обновления");
+                throw new Error("Помилка оновлення");
             }
         } catch(e) {
-            console.error("Ошибка сохранения в Gist:", e);
+            console.error("Помилка збереження в Gist:", e);
             saveToLocal();
-            showToast("⚠️ Данные сохранены локально", true);
+            showToast("⚠️ Збережено локально", true);
             return false;
         }
     }
 
     async function loadFromGist() {
-        updateSyncStatus('syncing', 'Загрузка...');
+        updateSyncStatus('syncing', 'Завантаження...');
         try {
             const response = await fetch(GIST_RAW_URL);
             if (response.ok) {
@@ -235,15 +211,15 @@
                 if (data.complaints) complaints = data.complaints;
                 if (data.organizations) organizations = data.organizations;
                 localStorage.setItem("kr_all_data", JSON.stringify(data));
-                updateSyncStatus('online', 'Синхронизировано');
-                showToast("✅ Данные загружены из Gist");
+                updateSyncStatus('online', 'Синхронізовано');
+                showToast("✅ Дані завантажено з Gist");
             } else {
                 loadFromLocal();
-                updateSyncStatus('online', 'Локальные данные');
+                updateSyncStatus('online', 'Локальні дані');
             }
         } catch(e) {
             loadFromLocal();
-            updateSyncStatus('online', 'Локальные данные');
+            updateSyncStatus('online', 'Локальні дані');
         }
         
         if (!users.find(u => u.username === "Neverlost_Testing")) {
@@ -413,7 +389,6 @@
     }
 
     window.addEventListener("DOMContentLoaded", async () => {
-        await loadToken();
         await loadFromGist();
         
         if (loadSession() && currentUser) {
@@ -467,13 +442,12 @@
             let target = document.getElementById("complaintTarget").value.trim();
             let desc = document.getElementById("complaintDesc").value.trim();
             if(!target || !desc) { showToast("Заполните поля", true); return; }
-            const newComplaint = { id: Date.now(), against: target, reason: desc, status: "новая", date: new Date().toLocaleDateString() };
-            complaints.unshift(newComplaint);
+            complaints.unshift({ id: Date.now(), against: target, reason: desc, status: "новая", date: new Date().toLocaleDateString() });
             await saveToGist();
             renderAll();
             document.getElementById("complaintTarget").value = ""; 
             document.getElementById("complaintDesc").value = "";
-            showToast("✅ Жалоба отправлена и сохранена в Gist");
+            showToast("✅ Жалоба отправлена и сохранена");
         };
         
         document.getElementById("submitOrgBtn").onclick = async () => {
