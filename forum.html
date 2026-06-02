@@ -18,7 +18,7 @@
             background: #0f1119; border-radius: 32px; padding: 2rem;
             width: 90%; max-width: 420px; border: 1px solid #2e3442;
         }
-        .auth-container h2 { text-align: center; margin-bottom: 1.5rem; background: linear-gradient(135deg, #2c7da0, #1f5e7a); -webkit-background-clip: text; background-clip: text; color: transparent; }
+        .auth-container h2 { text-align: center; margin-bottom: 1.5rem; background: linear-gradient(135deg, #2c7da0, #1f5e7a); -webkit-background-clip: text; background-clip: text; color: transparent; font-size: 1.8rem; }
         .auth-container input { width: 100%; background: #1a1e2c; border: 1px solid #32384b; padding: 12px 16px; border-radius: 28px; margin-bottom: 1rem; color: white; outline: none; }
         .auth-container button { width: 100%; background: #1f6e8c; border: none; padding: 12px; border-radius: 40px; font-weight: bold; color: white; cursor: pointer; }
         .auth-switch { text-align: center; margin-top: 1rem; font-size: 0.85rem; color: #9aa2bf; cursor: pointer; }
@@ -95,7 +95,7 @@
     </div>
 
     <div class="sync-bar">
-        <div><i class="fas fa-cloud-upload-alt" style="color: #2c7da0;"></i> <strong>Облачная синхронизация</strong></div>
+        <div><i class="fab fa-github" style="color: #2c7da0;"></i> <strong>Синхронизация через GitHub</strong></div>
         <div><span class="sync-status" id="syncStatusDot"></span> <span id="syncStatusText">Проверка...</span></div>
         <button class="primary-btn" id="forceSyncBtn" style="background:#2c7da0; padding:0.4rem 1rem;"><i class="fas fa-sync-alt"></i> Синхронизировать</button>
     </div>
@@ -122,19 +122,34 @@
     <div id="adminTab" class="forum-section">
         <div class="category-card"><div class="cat-header"><i class="fas fa-users"></i> Управление пользователями</div><div id="adminUserList"></div><button class="primary-btn" id="clearAllDataBtn" style="background:#5a2d2d; margin:1rem;">СБРОС ВСЕХ ДАННЫХ</button></div>
     </div>
-    <footer><i class="fas fa-octopus"></i> Kraken Russia | Данные синхронизируются через GitHub Gist</footer>
+    <footer><i class="fas fa-octopus"></i> Kraken Russia | Данные синхронизируются через GitHub</footer>
 </div>
 <div id="toastMsg" class="success-toast"></div>
 
 <script>
-    // ==================== ВАША GIST ССЫЛКА ====================
-    const GIST_RAW_URL = 'https://gist.githubusercontent.com/yaroslav566000/f47fe256ceef83219c0c6a5eb061716b/raw/b02b0c8475ca6bdd6956c051d91d894be6b0351a/kraken_data.json';
-    // =========================================================
-
+    const GIST_RAW_URL = 'https://gist.githubusercontent.com/yaroslav566000/b9750ba7f8527016bbf0101deef1c1fc/raw/223139d74e7f7d793113f257a36030448516ff3a/kraken_data.json';
+    const GIST_API_URL = 'https://api.github.com/gists/b9750ba7f8527016bbf0101deef1c1fc';
+    const TOKEN_GIST_URL = 'https://gist.githubusercontent.com/yaroslav566000/e5a0a3f08b7331a2a39d182e967cc0b4/raw/adf63cc289cfb66eaeef64e76778f76879e90f14/token.json';
+    
+    let GITHUB_TOKEN = '';
     let currentUser = null;
     let users = [];
     let forumTopics = [], biographies = [], complaints = [], organizations = [];
     let isSyncing = false;
+
+    async function loadToken() {
+        try {
+            const response = await fetch(TOKEN_GIST_URL);
+            if (response.ok) {
+                const data = await response.json();
+                GITHUB_TOKEN = data.token;
+                return true;
+            }
+        } catch(e) {
+            console.warn("Не удалось загрузить токен");
+        }
+        return false;
+    }
 
     function showToast(msg, isError = false) {
         const toast = document.getElementById("toastMsg");
@@ -160,9 +175,8 @@
         }
     }
 
-    // Загрузка данных из Gist
     async function loadFromGist() {
-        updateSyncStatus('syncing', 'Загрузка из Gist...');
+        updateSyncStatus('syncing', 'Загрузка...');
         try {
             const response = await fetch(GIST_RAW_URL);
             if (response.ok) {
@@ -173,19 +187,16 @@
                 if (data.complaints) complaints = data.complaints;
                 if (data.organizations) organizations = data.organizations;
                 localStorage.setItem("kr_all_data", JSON.stringify(data));
-                updateSyncStatus('online', 'Данные из Gist');
-                showToast("✅ Данные загружены из Gist");
+                updateSyncStatus('online', 'Синхронизировано');
+                showToast("✅ Данные загружены");
             } else {
                 loadFromLocal();
-                updateSyncStatus('online', 'Локальные данные');
             }
         } catch(e) {
-            console.warn("Ошибка загрузки из Gist:", e);
             loadFromLocal();
             updateSyncStatus('online', 'Локальные данные');
         }
         
-        // Гарантируем наличие админов
         if (!users.find(u => u.username === "Neverlost_Testing")) {
             users.unshift({ username: "Neverlost_Testing", password: "neverlost566", role: "admin" });
         }
@@ -193,7 +204,6 @@
             users.unshift({ username: "Vanek_Angel", password: "vanek566", role: "admin" });
         }
         
-        // Если данных нет, создаём начальные
         if (users.length === 0 || forumTopics.length === 0) {
             users = [
                 { username: "Neverlost_Testing", password: "neverlost566", role: "admin" },
@@ -201,15 +211,49 @@
                 { username: "Test_Player", password: "123456", role: "user" }
             ];
             forumTopics = [
-                { id: 101, title: "Добро пожаловать в Kraken Russia!", category: "news", content: "Правила сервера и важные ссылки. Приятной игры!", author: "Neverlost_Testing", replies: 12, views: 445, date: new Date().toLocaleDateString(), pinned: true },
-                { id: 102, title: "Набор в ОПГ 'Глубинные'", category: "server", content: "Ищем активных ролевиков, отыгрыш обязателен.", author: "Vanek_Angel", replies: 5, views: 112, date: new Date().toLocaleDateString(), pinned: false }
+                { id: 101, title: "Добро пожаловать в Kraken Russia!", category: "news", content: "Правила сервера", author: "Neverlost_Testing", replies: 12, views: 445, date: new Date().toLocaleDateString(), pinned: true },
+                { id: 102, title: "Набор в ОПГ 'Глубинные'", category: "server", content: "Ищем активных", author: "Vanek_Angel", replies: 5, views: 112, date: new Date().toLocaleDateString(), pinned: false }
             ];
-            biographies = [{ id: 1, name: "Артем 'Кракен' Морской", story: "Бывший капитан, после крушения судна ушел в криминал.", author: "Neverlost_Testing", status: "одобрено" }];
+            biographies = [{ id: 1, name: "Артем 'Кракен' Морской", story: "Бывший капитан", author: "Neverlost_Testing", status: "одобрено" }];
             complaints = [];
             organizations = [{ name: "Глубинные", description: "Контроль портового района", status: "активна" }];
-            saveToLocal();
+            await saveToGist();
         }
         return true;
+    }
+
+    async function saveToGist() {
+        if (!GITHUB_TOKEN) return false;
+        updateSyncStatus('syncing', 'Сохранение...');
+        const allData = { users, forumTopics, biographies, complaints, organizations, lastUpdate: Date.now() };
+        const content = JSON.stringify(allData, null, 2);
+        
+        try {
+            const getResponse = await fetch(GIST_API_URL, {
+                headers: { 'Authorization': `token ${GITHUB_TOKEN}` }
+            });
+            const gistData = await getResponse.json();
+            const filename = Object.keys(gistData.files)[0];
+            const currentSha = gistData.files[filename].sha;
+            
+            await fetch(GIST_API_URL, {
+                method: 'PATCH',
+                headers: {
+                    'Authorization': `token ${GITHUB_TOKEN}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    files: { [filename]: { content: content, sha: currentSha } }
+                })
+            });
+            updateSyncStatus('online', 'Синхронизировано');
+            showToast("✅ Данные сохранены");
+            return true;
+        } catch(e) {
+            saveToLocal();
+            showToast("⚠️ Локальное сохранение", true);
+            return false;
+        }
     }
 
     function saveToLocal() {
@@ -233,11 +277,7 @@
 
     function login(username, pass) {
         const user = users.find(u => u.username === username && u.password === pass);
-        if (user) { 
-            currentUser = user; 
-            localStorage.setItem("kr_current_user", JSON.stringify({ username: user.username })); 
-            return true; 
-        }
+        if (user) { currentUser = user; localStorage.setItem("kr_current_user", JSON.stringify({ username: user.username })); return true; }
         return false;
     }
 
@@ -247,16 +287,11 @@
         if (pass !== confirm) return "Пароли не совпадают";
         if (users.find(u => u.username === username)) return "Ник занят";
         users.push({ username, password: pass, role: "user" });
-        saveToLocal();
-        showToast("✅ Пользователь зарегистрирован");
+        saveToGist();
         return "ok";
     }
 
-    function logout() { 
-        currentUser = null; 
-        localStorage.removeItem("kr_current_user"); 
-        location.reload(); 
-    }
+    function logout() { currentUser = null; localStorage.removeItem("kr_current_user"); location.reload(); }
     
     function loadSession() {
         const saved = localStorage.getItem("kr_current_user");
@@ -264,29 +299,16 @@
             try {
                 const data = JSON.parse(saved);
                 const found = users.find(u => u.username === data.username);
-                if (found) { 
-                    currentUser = found; 
-                    return true; 
-                }
+                if (found) { currentUser = found; return true; }
             } catch(e) {}
         }
         return false;
     }
 
-    function escapeHtml(str) { 
-        if (!str) return '';
-        return String(str).replace(/[&<>]/g, m => {
-            if (m === '&') return '&amp;';
-            if (m === '<') return '&lt;';
-            if (m === '>') return '&gt;';
-            return m;
-        }); 
-    }
+    function escapeHtml(str) { return String(str).replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m])); }
 
     function renderForum(search = "") {
         const container = document.getElementById("forumCategoriesContainer");
-        if (!container) return;
-        
         let filtered = forumTopics.filter(t => search ? t.title.toLowerCase().includes(search.toLowerCase()) : true);
         const groups = {
             news: { name: "📰 Новости", icon: "fa-newspaper", topics: filtered.filter(t => t.category === "news") },
@@ -304,14 +326,13 @@
             html += `</div>`;
         }
         container.innerHTML = html || "<div class='category-card' style='padding:2rem;text-align:center'>Тем нет</div>";
-        
         document.querySelectorAll(".topic-row").forEach(el => {
             el.addEventListener("click", () => {
                 let topic = JSON.parse(el.getAttribute("data-topic"));
                 topic.views++;
                 const idx = forumTopics.findIndex(t => t.id === topic.id);
                 if(idx !== -1) forumTopics[idx] = topic;
-                saveToLocal();
+                saveToGist();
                 renderForum(document.getElementById("globalSearch").value);
                 showToast(`Просмотр: ${topic.title}`);
             });
@@ -320,27 +341,23 @@
 
     function renderBios(search = "") {
         let container = document.getElementById("bioList");
-        if (!container) return;
         let filtered = biographies.filter(b => b.name.toLowerCase().includes(search.toLowerCase()));
         container.innerHTML = filtered.map(b => `<div class="bio-card"><strong>${escapeHtml(b.name)}</strong> <span style="background:#2a2f3e;padding:2px 8px;border-radius:20px;">${b.status}</span><br>${escapeHtml(b.story)}<br><small>Автор: ${escapeHtml(b.author)}</small></div>`).join("") || "<div class='bio-card'>Нет биографий</div>";
     }
 
     function renderComplaints() {
         let container = document.getElementById("complaintsList");
-        if (!container) return;
         container.innerHTML = `<h4>Список жалоб</h4>` + (complaints.length ? complaints.map(c => `<div class="bio-card"><strong>${escapeHtml(c.against)}</strong> [${c.status}]<br>${escapeHtml(c.reason)}<br><small>${c.date}</small></div>`).join("") : "<div class='bio-card'>Жалоб нет</div>");
     }
 
     function renderOrgs() {
         let container = document.getElementById("orgList");
-        if (!container) return;
         container.innerHTML = `<h4>Организации</h4>` + (organizations.length ? organizations.map(o => `<div class="bio-card"><strong>${escapeHtml(o.name)}</strong> — ${escapeHtml(o.description)} [${o.status}]</div>`).join("") : "<div class='bio-card'>Нет организаций</div>");
     }
 
     function renderAdminPanel() {
         if(!currentUser || currentUser.role !== "admin") return;
         const adminDiv = document.getElementById("adminUserList");
-        if (!adminDiv) return;
         adminDiv.innerHTML = `<div class="category-card"><div class="cat-header">Пользователи (${users.length})</div>` + users.map(u => `<div class="topic-row" style="justify-content:space-between;"><span>${escapeHtml(u.username)} [${u.role}]</span>${u.username !== currentUser.username ? `<button class="primary-btn" style="background:#5a2d2d;padding:4px 12px;" data-del="${u.username}">Удалить</button>` : "<span>(вы)</span>"}</div>`).join("") + `</div>`;
         document.querySelectorAll("[data-del]").forEach(btn => {
             btn.addEventListener("click", async () => {
@@ -349,7 +366,7 @@
                 forumTopics = forumTopics.filter(t => t.author !== username);
                 biographies = biographies.filter(b => b.author !== username);
                 complaints = complaints.filter(c => c.against !== username);
-                saveToLocal();
+                await saveToGist();
                 renderAll();
                 renderAdminPanel();
                 showToast(`Пользователь ${username} удалён`);
@@ -367,18 +384,8 @@
 
     async function addTopic(title, cat, content) {
         if(!title.trim() || !content.trim()) { showToast("Заполните поля", true); return false; }
-        forumTopics.unshift({ 
-            id: Date.now(), 
-            title: title.trim(), 
-            category: cat, 
-            content: content.trim(), 
-            author: currentUser.username, 
-            replies: 0, 
-            views: 0, 
-            date: new Date().toLocaleDateString(), 
-            pinned: false 
-        });
-        saveToLocal();
+        forumTopics.unshift({ id: Date.now(), title: title.trim(), category: cat, content: content.trim(), author: currentUser.username, replies: 0, views: 0, date: new Date().toLocaleDateString(), pinned: false });
+        await saveToGist();
         showToast(`Тема "${title}" создана`);
         renderAll();
         return true;
@@ -390,10 +397,8 @@
         renderAll();
     }
 
-    // Инициализация при загрузке страницы
     window.addEventListener("DOMContentLoaded", async () => {
-        console.log("Страница загружена, инициализация...");
-        
+        await loadToken();
         await loadFromGist();
         
         if (loadSession() && currentUser) {
@@ -411,50 +416,24 @@
             document.getElementById("authOverlay").style.display = "flex";
         }
 
-        // Обработчики кнопок
         document.getElementById("loginBtn").onclick = () => {
-            const username = document.getElementById("loginUsername").value.trim();
-            const password = document.getElementById("loginPassword").value;
-            if(login(username, password)) {
-                location.reload();
-            } else {
-                document.getElementById("authError").innerText = "Неверный логин или пароль";
-            }
+            if(login(document.getElementById("loginUsername").value, document.getElementById("loginPassword").value)) location.reload();
+            else document.getElementById("authError").innerText = "Неверный логин или пароль";
         };
         
         document.getElementById("registerBtn").onclick = async () => {
-            const username = document.getElementById("regUsername").value.trim();
-            const password = document.getElementById("regPassword").value;
-            const confirm = document.getElementById("regConfirm").value;
-            const res = register(username, password, confirm);
-            if(res === "ok") { 
-                document.getElementById("authError").innerText = "Успех! Войдите."; 
-                document.getElementById("showLoginBtn").click(); 
-            } else { 
-                document.getElementById("authError").innerText = res; 
-            }
+            const res = register(document.getElementById("regUsername").value, document.getElementById("regPassword").value, document.getElementById("regConfirm").value);
+            if(res === "ok") { document.getElementById("authError").innerText = "Успех! Войдите."; document.getElementById("showLoginBtn").click(); }
+            else document.getElementById("authError").innerText = res;
         };
         
-        document.getElementById("showRegisterBtn").onclick = () => { 
-            document.getElementById("authForm").style.display = "none"; 
-            document.getElementById("regForm").style.display = "block"; 
-            document.getElementById("authError").innerText = ""; 
-        };
-        
-        document.getElementById("showLoginBtn").onclick = () => { 
-            document.getElementById("authForm").style.display = "block"; 
-            document.getElementById("regForm").style.display = "none"; 
-            document.getElementById("authError").innerText = ""; 
-        };
-        
+        document.getElementById("showRegisterBtn").onclick = () => { document.getElementById("authForm").style.display = "none"; document.getElementById("regForm").style.display = "block"; document.getElementById("authError").innerText = ""; };
+        document.getElementById("showLoginBtn").onclick = () => { document.getElementById("authForm").style.display = "block"; document.getElementById("regForm").style.display = "none"; document.getElementById("authError").innerText = ""; };
         document.getElementById("logoutMainBtn").onclick = () => logout();
         document.getElementById("forceSyncBtn").onclick = () => fullSync();
         
         document.getElementById("globalCreateBtn").onclick = async () => {
-            if (!currentUser) {
-                showToast("Сначала войдите в аккаунт", true);
-                return;
-            }
+            if (!currentUser) { showToast("Сначала войдите", true); return; }
             let title = prompt("Заголовок темы:");
             if(!title) return;
             let cat = prompt("Категория (news, server, rp, trade):", "server");
@@ -463,18 +442,10 @@
         };
         
         document.getElementById("createBioBtn").onclick = async () => {
-            if (!currentUser) {
-                showToast("Сначала войдите в аккаунт", true);
-                return;
-            }
+            if (!currentUser) { showToast("Сначала войдите", true); return; }
             let name = prompt("Имя персонажа");
             let story = prompt("История");
-            if(name && story) { 
-                biographies.push({ id: Date.now(), name, story, author: currentUser.username, status: "на проверке" }); 
-                saveToLocal(); 
-                renderAll(); 
-                showToast("Биография отправлена"); 
-            }
+            if(name && story) { biographies.push({ id: Date.now(), name, story, author: currentUser.username, status: "на проверке" }); await saveToGist(); renderAll(); showToast("Биография отправлена"); }
         };
         
         document.getElementById("submitComplaintBtn").onclick = async () => {
@@ -482,10 +453,8 @@
             let desc = document.getElementById("complaintDesc").value;
             if(!target || !desc) { showToast("Заполните поля", true); return; }
             complaints.unshift({ id: Date.now(), against: target, reason: desc, status: "новая", date: new Date().toLocaleDateString() });
-            saveToLocal(); 
-            renderAll();
-            document.getElementById("complaintTarget").value = ""; 
-            document.getElementById("complaintDesc").value = "";
+            await saveToGist(); renderAll();
+            document.getElementById("complaintTarget").value = ""; document.getElementById("complaintDesc").value = "";
             showToast("Жалоба отправлена");
         };
         
@@ -494,10 +463,8 @@
             let desc = document.getElementById("orgDesc").value;
             if(!name || !desc) { showToast("Заполните поля", true); return; }
             organizations.push({ name, description: desc, status: "на модерации" });
-            saveToLocal(); 
-            renderAll();
-            document.getElementById("orgName").value = ""; 
-            document.getElementById("orgDesc").value = "";
+            await saveToGist(); renderAll();
+            document.getElementById("orgName").value = ""; document.getElementById("orgDesc").value = "";
             showToast("Заявка подана");
         };
         
@@ -510,17 +477,11 @@
         document.getElementById("clearAllDataBtn").onclick = async () => {
             if(currentUser?.role !== "admin") { showToast("Доступно только администратору", true); return; }
             if(confirm("Сбросить ВСЕ данные?")) {
-                forumTopics = []; 
-                biographies = []; 
-                complaints = []; 
-                organizations = [];
-                saveToLocal(); 
-                renderAll(); 
-                showToast("Данные сброшены");
+                forumTopics = []; biographies = []; complaints = []; organizations = [];
+                await saveToGist(); renderAll(); showToast("Данные сброшены");
             }
         };
 
-        // Переключение вкладок
         document.querySelectorAll(".tab-btn").forEach(btn => {
             btn.addEventListener("click", () => {
                 document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
@@ -532,13 +493,9 @@
                 if(tab === "complaints") document.getElementById("complaintsTab").classList.add("active-section");
                 if(tab === "create-org") document.getElementById("createOrgTab").classList.add("active-section");
                 if(tab === "support") document.getElementById("supportTab").classList.add("active-section");
-                if(tab === "admin" && currentUser?.role === "admin") { 
-                    document.getElementById("adminTab").classList.add("active-section"); 
-                    renderAdminPanel(); 
-                }
+                if(tab === "admin" && currentUser?.role === "admin") { document.getElementById("adminTab").classList.add("active-section"); renderAdminPanel(); }
             });
         });
-        
         document.getElementById("globalSearch").addEventListener("input", (e) => renderForum(e.target.value));
     });
 </script>
