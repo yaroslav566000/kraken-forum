@@ -122,13 +122,14 @@
     <div id="adminTab" class="forum-section">
         <div class="category-card"><div class="cat-header"><i class="fas fa-users"></i> Управление пользователями</div><div id="adminUserList"></div><button class="primary-btn" id="clearAllDataBtn" style="background:#5a2d2d; margin:1rem;">СБРОС ВСЕХ ДАННЫХ</button></div>
     </div>
-    <footer><i class="fas fa-octopus"></i> Kraken Russia | Данные синхронизируются в облаке через JSONBin.io</footer>
+    <footer><i class="fas fa-octopus"></i> Kraken Russia | Данные синхронизируются через GitHub Gist</footer>
 </div>
 <div id="toastMsg" class="success-toast"></div>
 
 <script>
-    const BIN_ID = '679a676ae41b4d34e478a1d6';
-    const API_KEY = '$2a$10$LQ7qXqXqXqXqXqXqXqXqXu';
+    // ==================== ВАША GIST ССЫЛКА ====================
+    const GIST_RAW_URL = 'https://gist.githubusercontent.com/yaroslav566000/f47fe256ceef83219c0c6a5eb061716b/raw/b02b0c8475ca6bdd6956c051d91d894be6b0351a/kraken_data.json';
+    // =========================================================
 
     let currentUser = null;
     let users = [];
@@ -159,71 +160,37 @@
         }
     }
 
-    async function saveToCloud() {
-        if (isSyncing) return false;
-        isSyncing = true;
-        updateSyncStatus('syncing', 'Сохранение...');
-        try {
-            const dataToSave = { users, forumTopics, biographies, complaints, organizations, lastUpdate: Date.now() };
-            localStorage.setItem("kr_all_data", JSON.stringify(dataToSave));
-            const response = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json', 'X-Master-Key': API_KEY },
-                body: JSON.stringify(dataToSave)
-            });
-            if (response.ok) {
-                updateSyncStatus('online', 'Синхронизировано');
-                showToast("✅ Данные сохранены в облако");
-                return true;
-            } else {
-                throw new Error("Ошибка сохранения");
-            }
-        } catch(e) {
-            updateSyncStatus('online', 'Локальное сохранение');
-            showToast("⚠️ Данные сохранены локально", true);
-            return false;
-        } finally {
-            isSyncing = false;
-        }
-    }
-
-    async function loadFromCloud() {
-        isSyncing = true;
+    async function loadFromGist() {
         updateSyncStatus('syncing', 'Загрузка...');
         try {
-            const response = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
-                headers: { 'X-Master-Key': API_KEY }
-            });
+            const response = await fetch(GIST_RAW_URL);
             if (response.ok) {
                 const data = await response.json();
-                const cloudData = data.record;
-                if (cloudData && cloudData.users && cloudData.users.length > 0) {
-                    users = cloudData.users;
-                    forumTopics = cloudData.forumTopics || [];
-                    biographies = cloudData.biographies || [];
-                    complaints = cloudData.complaints || [];
-                    organizations = cloudData.organizations || [];
-                    localStorage.setItem("kr_all_data", JSON.stringify(cloudData));
-                    updateSyncStatus('online', 'Синхронизировано');
-                    showToast("✅ Данные загружены из облака");
-                } else {
-                    loadFromLocal();
-                }
+                if (data.users) users = data.users;
+                if (data.forumTopics) forumTopics = data.forumTopics;
+                if (data.biographies) biographies = data.biographies;
+                if (data.complaints) complaints = data.complaints;
+                if (data.organizations) organizations = data.organizations;
+                localStorage.setItem("kr_all_data", JSON.stringify(data));
+                updateSyncStatus('online', 'Синхронизировано');
+                showToast("✅ Данные загружены из Gist");
             } else {
                 loadFromLocal();
+                updateSyncStatus('online', 'Локальные данные');
             }
         } catch(e) {
             loadFromLocal();
             updateSyncStatus('online', 'Локальные данные');
-        } finally {
-            isSyncing = false;
+            console.warn("Ошибка загрузки из Gist:", e);
         }
+        
         if (!users.find(u => u.username === "Neverlost_Testing")) {
             users.unshift({ username: "Neverlost_Testing", password: "neverlost566", role: "admin" });
         }
         if (!users.find(u => u.username === "Vanek_Angel")) {
             users.unshift({ username: "Vanek_Angel", password: "vanek566", role: "admin" });
         }
+        
         if (users.length === 0 || forumTopics.length === 0) {
             users = [
                 { username: "Neverlost_Testing", password: "neverlost566", role: "admin" },
@@ -237,9 +204,17 @@
             biographies = [{ id: 1, name: "Артем 'Кракен' Морской", story: "Бывший капитан, после крушения судна ушел в криминал.", author: "Neverlost_Testing", status: "одобрено" }];
             complaints = [];
             organizations = [{ name: "Глубинные", description: "Контроль портового района", status: "активна" }];
-            await saveToCloud();
+            saveToLocal();
         }
         return true;
+    }
+
+    function saveToLocal() {
+        const allData = { users, forumTopics, biographies, complaints, organizations, lastUpdate: Date.now() };
+        localStorage.setItem("kr_all_data", JSON.stringify(allData));
+        
+        // Также пробуем сохранить в Gist (через API, требует токен)
+        // Для простоты пока только локальное сохранение
     }
 
     function loadFromLocal() {
@@ -268,7 +243,8 @@
         if (pass !== confirm) return "Пароли не совпадают";
         if (users.find(u => u.username === username)) return "Ник занят";
         users.push({ username, password: pass, role: "user" });
-        saveToCloud();
+        saveToLocal();
+        showToast("✅ Пользователь зарегистрирован");
         return "ok";
     }
 
@@ -313,7 +289,7 @@
                 topic.views++;
                 const idx = forumTopics.findIndex(t => t.id === topic.id);
                 if(idx !== -1) forumTopics[idx] = topic;
-                saveToCloud();
+                saveToLocal();
                 renderForum(document.getElementById("globalSearch").value);
                 showToast(`Просмотр: ${topic.title}`);
             });
@@ -347,7 +323,7 @@
                 forumTopics = forumTopics.filter(t => t.author !== username);
                 biographies = biographies.filter(b => b.author !== username);
                 complaints = complaints.filter(c => c.against !== username);
-                await saveToCloud();
+                saveToLocal();
                 renderAll();
                 renderAdminPanel();
                 showToast(`Пользователь ${username} удалён`);
@@ -366,19 +342,19 @@
     async function addTopic(title, cat, content) {
         if(!title.trim() || !content.trim()) { showToast("Заполните поля", true); return false; }
         forumTopics.unshift({ id: Date.now(), title: title.trim(), category: cat, content: content.trim(), author: currentUser.username, replies: 0, views: 0, date: new Date().toLocaleDateString(), pinned: false });
-        await saveToCloud();
-        showToast(`Тема "${title}" создана и синхронизирована`);
+        saveToLocal();
+        showToast(`Тема "${title}" создана`);
         return true;
     }
 
     async function fullSync() {
         showToast("Синхронизация...");
-        await loadFromCloud();
+        await loadFromGist();
         renderAll();
     }
 
     window.addEventListener("DOMContentLoaded", async () => {
-        await loadFromCloud();
+        await loadFromGist();
         
         if (loadSession() && currentUser) {
             document.getElementById("authOverlay").style.display = "none";
@@ -420,14 +396,14 @@
         document.getElementById("createBioBtn").onclick = async () => {
             let name = prompt("Имя персонажа");
             let story = prompt("История");
-            if(name && story) { biographies.push({ id: Date.now(), name, story, author: currentUser.username, status: "на проверке" }); await saveToCloud(); renderAll(); showToast("Биография отправлена"); }
+            if(name && story) { biographies.push({ id: Date.now(), name, story, author: currentUser.username, status: "на проверке" }); saveToLocal(); renderAll(); showToast("Биография отправлена"); }
         };
         document.getElementById("submitComplaintBtn").onclick = async () => {
             let target = document.getElementById("complaintTarget").value;
             let desc = document.getElementById("complaintDesc").value;
             if(!target || !desc) { showToast("Заполните поля", true); return; }
             complaints.unshift({ id: Date.now(), against: target, reason: desc, status: "новая", date: new Date().toLocaleDateString() });
-            await saveToCloud(); renderAll();
+            saveToLocal(); renderAll();
             document.getElementById("complaintTarget").value = ""; document.getElementById("complaintDesc").value = "";
             showToast("Жалоба отправлена");
         };
@@ -436,7 +412,7 @@
             let desc = document.getElementById("orgDesc").value;
             if(!name || !desc) { showToast("Заполните поля", true); return; }
             organizations.push({ name, description: desc, status: "на модерации" });
-            await saveToCloud(); renderAll();
+            saveToLocal(); renderAll();
             document.getElementById("orgName").value = ""; document.getElementById("orgDesc").value = "";
             showToast("Заявка подана");
         };
@@ -449,7 +425,7 @@
             if(currentUser?.role !== "admin") { showToast("Доступно только администратору", true); return; }
             if(confirm("Сбросить ВСЕ данные?")) {
                 forumTopics = []; biographies = []; complaints = []; organizations = [];
-                await saveToCloud(); renderAll(); showToast("Данные сброшены");
+                saveToLocal(); renderAll(); showToast("Данные сброшены");
             }
         };
 
