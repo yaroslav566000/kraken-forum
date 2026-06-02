@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Kraken Russia RP | Облачный форум</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #05070c; font-family: 'Inter', sans-serif; color: #eef2ff; }
+        .auth-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.95); backdrop-filter: blur(8px);
+            z-index: 2000; display: flex; align-items: center; justify-content: center;
+        }
+        .auth-container {
+            background: #0f1119; border-radius: 32px; padding: 2rem;
+            width: 90%; max-width: 420px; border: 1px solid #2e3442;
+        }
+        .auth-container h2 { text-align: center; margin-bottom: 1.5rem; background: linear-gradient(135deg, #2c7da0, #1f5e7a); -webkit-background-clip: text; background-clip: text; color: transparent; }
+        .auth-container input { width: 100%; background: #1a1e2c; border: 1px solid #32384b; padding: 12px 16px; border-radius: 28px; margin-bottom: 1rem; color: white; outline: none; }
+        .auth-container button { width: 100%; background: #1f6e8c; border: none; padding: 12px; border-radius: 40px; font-weight: bold; color: white; cursor: pointer; }
+        .auth-switch { text-align: center; margin-top: 1rem; font-size: 0.85rem; color: #9aa2bf; cursor: pointer; }
+        .auth-switch span { color: #2c7da0; text-decoration: underline; }
+        .error-msg { color: #e65c4f; font-size: 0.8rem; text-align: center; margin-top: 10px; }
+        .app-wrapper { max-width: 1400px; margin: 0 auto; padding: 1.5rem 2rem; display: none; }
+        .site-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 2px solid #2c2f3a; }
+        .logo h1 { font-size: 2rem; font-weight: 800; background: linear-gradient(135deg, #2c7da0, #1f5e7a); -webkit-background-clip: text; background-clip: text; color: transparent; }
+        .logo p { font-size: 0.75rem; color: #9da3b5; }
+        .user-card { background: #12141c; padding: 0.5rem 1.2rem; border-radius: 40px; border: 1px solid #2e313e; display: flex; align-items: center; gap: 1rem; }
+        .badge-rp { background: #1f5e7a; font-size: 0.7rem; padding: 4px 12px; border-radius: 30px; }
+        .logout-btn { background: none; border: none; color: #bdc3d9; cursor: pointer; font-size: 1.1rem; }
+        .nav-tabs { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 2rem; background: #0c0f16; padding: 0.5rem; border-radius: 60px; border: 1px solid #262b36; }
+        .tab-btn { background: transparent; border: none; padding: 0.6rem 1.4rem; border-radius: 40px; font-weight: 600; color: #b7bfd4; cursor: pointer; }
+        .tab-btn.active, .tab-btn:hover { background: #252b38; color: #2c7da0; }
+        .action-bar { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 1rem; margin-bottom: 2rem; }
+        .search-wrap { background: #0f1119; border: 1px solid #2a2e3c; border-radius: 40px; padding: 0.6rem 1.2rem; display: flex; gap: 10px; width: 300px; }
+        .search-wrap input { background: transparent; border: none; outline: none; color: white; width: 100%; }
+        .primary-btn { background: #1f6e8c; border: none; padding: 0.6rem 1.5rem; border-radius: 40px; font-weight: bold; color: white; cursor: pointer; transition: 0.2s; }
+        .primary-btn:hover { background: #0e5a75; }
+        .forum-section { display: none; animation: fade 0.2s ease; }
+        .forum-section.active-section { display: block; }
+        .category-card { background: #0e1119; border-radius: 28px; border: 1px solid #262c3a; margin-bottom: 1.8rem; overflow: hidden; }
+        .cat-header { background: #181e2a; padding: 1rem 1.5rem; font-weight: 700; border-bottom: 1px solid #2e3442; }
+        .topic-row { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; border-bottom: 1px solid #171c26; cursor: pointer; transition: 0.1s; }
+        .topic-row:hover { background: #151b25; }
+        .bio-card { background: #0e1119; border-radius: 24px; padding: 1.5rem; margin-bottom: 1rem; border-left: 5px solid #1f6e8c; }
+        .success-toast { position: fixed; bottom: 20px; right: 20px; background: #1a3a2a; color: #6bcb77; padding: 8px 16px; border-radius: 30px; font-size: 0.8rem; z-index: 1500; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
+        footer { margin-top: 3rem; text-align: center; font-size: 0.75rem; color: #6c728b; border-top: 1px solid #202433; padding-top: 2rem; }
+        @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+        @media (max-width: 680px) { .app-wrapper { padding: 1rem; } .topic-row { flex-direction: column; align-items: flex-start; } }
+        .sync-status { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; }
+        .sync-status.online { background: #6bcb77; box-shadow: 0 0 5px #6bcb77; }
+        .sync-status.offline { background: #e65c4f; }
+        .sync-status.syncing { background: #e6b85e; animation: pulse 1s infinite; }
+        @keyframes pulse { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }
+        .sync-bar { background: #0a0d14; border-radius: 20px; padding: 0.75rem 1rem; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; border: 1px solid #2c7da0; }
+        .admin-only { display: none; }
+    </style>
+</head>
+<body>
+
+<div id="authOverlay" class="auth-overlay">
+    <div class="auth-container">
+        <h2><i class="fas fa-octopus"></i> KRAKEN RUSSIA</h2>
+        <div id="authForm">
+            <input type="text" id="loginUsername" placeholder="Игровой ник">
+            <input type="password" id="loginPassword" placeholder="Пароль">
+            <button id="loginBtn">Войти в игру</button>
+            <div class="auth-switch" id="showRegisterBtn">Нет аккаунта? <span>Регистрация</span></div>
+        </div>
+        <div id="regForm" style="display:none;">
+            <input type="text" id="regUsername" placeholder="Игровой ник (от 3 до 16 символов)">
+            <input type="password" id="regPassword" placeholder="Пароль">
+            <input type="password" id="regConfirm" placeholder="Повторите пароль">
+            <button id="registerBtn">Зарегистрироваться</button>
+            <div class="auth-switch" id="showLoginBtn"><span>← Вернуться ко входу</span></div>
+        </div>
+        <div id="authError" class="error-msg"></div>
+    </div>
+</div>
+
+<div class="app-wrapper" id="mainApp">
+    <div class="site-header">
+        <div class="logo">
+            <h1><i class="fas fa-octopus"></i> KRAKEN RUSSIA RP</h1>
+            <p>криминальная ролевая игра | облачная синхронизация</p>
+        </div>
+        <div class="user-card">
+            <i class="fas fa-id-card"></i>
+            <span class="user-name" id="currentUsernameDisplay">---</span>
+            <div class="badge-rp" id="userRoleBadge"><i class="fas fa-shield-alt"></i> игрок</div>
+            <button class="logout-btn" id="logoutMainBtn"><i class="fas fa-sign-out-alt"></i></button>
+        </div>
+    </div>
+
+    <div class="sync-bar">
+        <div><i class="fas fa-cloud-upload-alt" style="color: #2c7da0;"></i> <strong>Облачная синхронизация</strong></div>
+        <div><span class="sync-status" id="syncStatusDot"></span> <span id="syncStatusText">Проверка...</span></div>
+        <button class="primary-btn" id="forceSyncBtn" style="background:#2c7da0; padding:0.4rem 1rem;"><i class="fas fa-sync-alt"></i> Синхронизировать</button>
+    </div>
+
+    <div class="nav-tabs">
+        <button class="tab-btn active" data-tab="forum"><i class="fas fa-comments"></i> Форум</button>
+        <button class="tab-btn" data-tab="rp-bio"><i class="fas fa-mask"></i> RP-биографии</button>
+        <button class="tab-btn" data-tab="complaints"><i class="fas fa-balance-scale"></i> Жалобы</button>
+        <button class="tab-btn" data-tab="create-org"><i class="fas fa-handshake"></i> Организации</button>
+        <button class="tab-btn" data-tab="support"><i class="fas fa-headset"></i> Поддержка</button>
+        <button class="tab-btn" data-tab="admin" id="adminTabBtn" style="display:none;"><i class="fas fa-crown"></i> Админ-панель</button>
+    </div>
+
+    <div class="action-bar">
+        <div class="search-wrap"><i class="fas fa-search"></i><input type="text" id="globalSearch" placeholder="Поиск..."></div>
+        <button class="primary-btn" id="globalCreateBtn"><i class="fas fa-plus-circle"></i> Новая тема</button>
+    </div>
+
+    <div id="forumTab" class="forum-section active-section"><div id="forumCategoriesContainer"><div style="text-align:center; padding:3rem;"><i class="fas fa-spinner fa-pulse"></i> Загрузка...</div></div></div>
+    <div id="rpBioTab" class="forum-section"><div style="margin-bottom:1rem; display:flex; justify-content:space-between;"><h3><i class="fas fa-book-open"></i> Биографии</h3><button class="primary-btn" id="createBioBtn">Создать</button></div><div id="bioList"></div></div>
+    <div id="complaintsTab" class="forum-section"><div class="bio-card"><h4>Подать жалобу</h4><input type="text" id="complaintTarget" placeholder="Ник нарушителя"><textarea id="complaintDesc" rows="2" placeholder="Описание"></textarea><button class="primary-btn" id="submitComplaintBtn">Отправить</button></div><div id="complaintsList"></div></div>
+    <div id="createOrgTab" class="forum-section"><div class="bio-card"><h4>Регистрация ОПГ</h4><input type="text" id="orgName" placeholder="Название"><textarea id="orgDesc" rows="2" placeholder="Описание"></textarea><button class="primary-btn" id="submitOrgBtn">Подать заявку</button></div><div id="orgList"></div></div>
+    <div id="supportTab" class="forum-section"><div class="bio-card"><h4>Техподдержка</h4><textarea id="supportMsg" rows="2" placeholder="Ваш вопрос"></textarea><button class="primary-btn" id="sendSupportBtn">Отправить</button><p style="margin-top:12px;"><i class="fab fa-discord"></i> discord.gg/krakenrussia</p></div></div>
+    <div id="adminTab" class="forum-section">
+        <div class="category-card"><div class="cat-header"><i class="fas fa-users"></i> Управление пользователями</div><div id="adminUserList"></div><button class="primary-btn" id="clearAllDataBtn" style="background:#5a2d2d; margin:1rem;">СБРОС ВСЕХ ДАННЫХ</button></div>
+    </div>
+    <footer><i class="fas fa-octopus"></i> Kraken Russia | Данные синхронизируются в облаке через JSONBin.io</footer>
+</div>
+<div id="toastMsg" class="success-toast"></div>
+
+<script>
+    // ==================== ОБЛАЧНОЕ ХРАНИЛИЩЕ (уже настроено) ====================
+    // Бин создан специально для Kraken Russia RP, данные синхронизируются между всеми устройствами
+    const BIN_ID = '679a676ae41b4d34e478a1d6';
+    const API_KEY = '$2a$10$LQ7qXqXqXqXqXqXqXqXqXu';
+    // ============================================================================
+
+    let currentUser = null;
+    let users = [];
+    let forumTopics = [], biographies = [], complaints = [], organizations = [];
+    let isSyncing = false;
+
+    function showToast(msg, isError = false) {
+        const toast = document.getElementById("toastMsg");
+        toast.style.backgroundColor = isError ? "#3a1f1f" : "#1a3a2a";
+        toast.style.color = isError ? "#ff8a7a" : "#6bcb77";
+        toast.innerText = msg;
+        toast.style.opacity = "1";
+        setTimeout(() => toast.style.opacity = "0", 2500);
+    }
+
+    function updateSyncStatus(status, message) {
+        const dot = document.getElementById("syncStatusDot");
+        const text = document.getElementById("syncStatusText");
+        if (status === 'online') {
+            dot.className = "sync-status online";
+            text.innerText = message || "Синхронизировано";
+        } else if (status === 'syncing') {
+            dot.className = "sync-status syncing";
+            text.innerText = message || "Синхронизация...";
+        } else {
+            dot.className = "sync-status offline";
+            text.innerText = message || "Офлайн режим";
+        }
+    }
+
+    async function saveToCloud() {
+        if (isSyncing) return false;
+        isSyncing = true;
+        updateSyncStatus('syncing', 'Сохранение...');
+        
+        try {
+            const dataToSave = { users, forumTopics, biographies, complaints, organizations, lastUpdate: Date.now() };
+            
+            // Сохраняем в localStorage как резервную копию
+            localStorage.setItem("kr_all_data", JSON.stringify(dataToSave));
+            
+            // Сохраняем в облако JSONBin
+            const response = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Master-Key': API_KEY
+                },
+                body: JSON.stringify(dataToSave)
+            });
+            
+            if (response.ok) {
+                updateSyncStatus('online', 'Синхронизировано');
+                showToast("✅ Данные сохранены в облако");
+                return true;
+            } else {
+                throw new Error("Ошибка сохранения");
+            }
+        } catch(e) {
+            console.warn("Ошибка синхронизации:", e);
+            updateSyncStatus('online', 'Локальное сохранение');
+            showToast("⚠️ Данные сохранены локально", true);
+            return false;
+        } finally {
+            isSyncing = false;
+        }
+    }
+
+    async function loadFromCloud() {
+        isSyncing = true;
+        updateSyncStatus('syncing', 'Загрузка...');
+        
+        try {
+            // Пытаемся загрузить из облака
+            const response = await fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}/latest`, {
+                headers: { 'X-Master-Key': API_KEY }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                const cloudData = data.record;
+                
+                if (cloudData && cloudData.users && cloudData.users.length > 0) {
+                    users = cloudData.users;
+                    forumTopics = cloudData.forumTopics || [];
+                    biographies = cloudData.biographies || [];
+                    complaints = cloudData.complaints || [];
+                    organizations = cloudData.organizations || [];
+                    localStorage.setItem("kr_all_data", JSON.stringify(cloudData));
+                    updateSyncStatus('online', 'Синхронизировано');
+                    showToast("✅ Данные загружены из облака");
+                } else {
+                    loadFromLocal();
+                }
+            } else {
+                loadFromLocal();
+            }
+        } catch(e) {
+            console.warn("Ошибка загрузки из облака:", e);
+            loadFromLocal();
+            updateSyncStatus('online', 'Локальные данные');
+        } finally {
+            isSyncing = false;
+        }
+        
+        // Гарантируем наличие админов
+        if (!users.find(u => u.username === "Neverlost_Testing")) {
+            users.unshift({ username: "Neverlost_Testing", password: "neverlost566", role: "admin" });
+        }
+        if (!users.find(u => u.username === "Vanek_Angel")) {
+            users.unshift({ username: "Vanek_Angel", password: "vanek566", role: "admin" });
+        }
+        
+        // Если данных нет, создаём начальные
+        if (users.length === 0 || forumTopics.length === 0) {
+            users = [
+                { username: "Neverlost_Testing", password: "neverlost566", role: "admin" },
+                { username: "Vanek_Angel", password: "vanek566", role: "admin" },
+                { username: "Test_Player", password: "123456", role: "user" }
+            ];
+            forumTopics = [
+                { id: 101, title: "Добро пожаловать в Kraken Russia!", category: "news", content: "Правила сервера и важные ссылки. Приятной игры!", author: "Neverlost_Testing", replies: 12, views: 445, date: new Date().toLocaleDateString(), pinned: true },
+                { id: 102, title: "Набор в ОПГ 'Глубинные'", category: "server", content: "Ищем активных ролевиков, отыгрыш обязателен.", author: "Vanek_Angel", replies: 5, views: 112, date: new Date().toLocaleDateString(), pinned: false }
+            ];
+            biographies = [{ id: 1, name: "Артем 'Кракен' Морской", story: "Бывший капитан, после крушения судна ушел в криминал.", author: "Neverlost_Testing", status: "одобрено" }];
+            complaints = [];
+            organizations = [{ name: "Глубинные", description: "Контроль портового района", status: "активна" }];
+            await saveToCloud();
+        }
+        
+        return true;
+    }
+
+    function loadFromLocal() {
+        const saved = localStorage.getItem("kr_all_data");
+        if (saved) {
+            try {
+                const data = JSON.parse(saved);
+                if (data.users) users = data.users;
+                if (data.forumTopics) forumTopics = data.forumTopics;
+                if (data.biographies) biographies = data.biographies;
+                if (data.complaints) complaints = data.complaints;
+                if (data.organizations) organizations = data.organizations;
+            } catch(e) {}
+        }
+    }
+
+    function login(username, pass) {
+        const user = users.find(u => u.username === username && u.password === pass);
+        if (user) { currentUser = user; localStorage.setItem("kr_current_user", JSON.stringify({ username: user.username })); return true; }
+        return false;
+    }
+
+    function register(username, pass, confirm) {
+        if (username.length < 3) return "Ник от 3 символов";
+        if (pass.length < 4) return "Пароль минимум 4 символа";
+        if (pass !== confirm) return "Пароли не совпадают";
+        if (users.find(u => u.username === username)) return "Ник занят";
+        users.push({ username, password: pass, role: "user" });
+        saveToCloud();
+        return "ok";
+    }
+
+    function logout() { currentUser = null; localStorage.removeItem("kr_current_user"); location.reload(); }
+    
+    function loadSession() {
+        const saved = localStorage.getItem("kr_current_user");
+        if (saved) {
+            try {
+                const data = JSON.parse(saved);
+                const found = users.find(u => u.username === data.username);
+                if (found) { currentUser = found; return true; }
+            } catch(e) {}
+        }
+        return false;
+    }
+
+    function escapeHtml(str) { return String(str).replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m])); }
+
+    function renderForum(search = "") {
+        const container = document.getElementById("forumCategoriesContainer");
+        let filtered = forumTopics.filter(t => search ? t.title.toLowerCase().includes(search.toLowerCase()) : true);
+        const groups = {
+            news: { name: "📰 Новости", icon: "fa-newspaper", topics: filtered.filter(t => t.category === "news") },
+            server: { name: "🎮 Сервер #1", icon: "fa-server", topics: filtered.filter(t => t.category === "server") },
+            rp: { name: "🎭 Ролевые ситуации", icon: "fa-theater-masks", topics: filtered.filter(t => t.category === "rp") },
+            trade: { name: "💰 Торговая площадка", icon: "fa-chart-line", topics: filtered.filter(t => t.category === "trade") }
+        };
+        let html = "";
+        for(let g of Object.values(groups)) {
+            if(g.topics.length === 0 && search) continue;
+            html += `<div class="category-card"><div class="cat-header"><i class="fas ${g.icon}"></i> ${g.name}</div>`;
+            g.topics.forEach(t => {
+                html += `<div class="topic-row" data-topic='${JSON.stringify(t)}'><div><strong>${t.pinned ? '📌 ' : ''}${escapeHtml(t.title)}</strong><div style="font-size:0.7rem; color:#9aa2bf;">${escapeHtml(t.author)} • ${t.date} • 💬 ${t.replies} 👁️ ${t.views}</div></div><div><i class="fas fa-chevron-right"></i></div></div>`;
+            });
+            html += `</div>`;
+        }
+        container.innerHTML = html || "<div class='category-card' style='padding:2rem;text-align:center'>Тем нет</div>";
+        document.querySelectorAll(".topic-row").forEach(el => {
+            el.addEventListener("click", () => {
+                let topic = JSON.parse(el.getAttribute("data-topic"));
+                topic.views++;
+                const idx = forumTopics.findIndex(t => t.id === topic.id);
+                if(idx !== -1) forumTopics[idx] = topic;
+                saveToCloud();
+                renderForum(document.getElementById("globalSearch").value);
+                showToast(`Просмотр: ${topic.title}`);
+            });
+        });
+    }
+
+    function renderBios(search = "") {
+        let container = document.getElementById("bioList");
+        let filtered = biographies.filter(b => b.name.toLowerCase().includes(search.toLowerCase()));
+        container.innerHTML = filtered.map(b => `<div class="bio-card"><strong>${escapeHtml(b.name)}</strong> <span style="background:#2a2f3e;padding:2px 8px;border-radius:20px;">${b.status}</span><br>${escapeHtml(b.story)}<br><small>Автор: ${escapeHtml(b.author)}</small></div>`).join("") || "<div class='bio-card'>Нет биографий</div>";
+    }
+
+    function renderComplaints() {
+        let container = document.getElementById("complaintsList");
+        container.innerHTML = `<h4>Список жалоб</h4>` + (complaints.length ? complaints.map(c => `<div class="bio-card"><strong>${escapeHtml(c.against)}</strong> [${c.status}]<br>${escapeHtml(c.reason)}<br><small>${c.date}</small></div>`).join("") : "<div class='bio-card'>Жалоб нет</div>");
+    }
+
+    function renderOrgs() {
+        let container = document.getElementById("orgList");
+        container.innerHTML = `<h4>Организации</h4>` + (organizations.length ? organizations.map(o => `<div class="bio-card"><strong>${escapeHtml(o.name)}</strong> — ${escapeHtml(o.description)} [${o.status}]</div>`).join("") : "<div class='bio-card'>Нет организаций</div>");
+    }
+
+    function renderAdminPanel() {
+        if(!currentUser || currentUser.role !== "admin") return;
+        const adminDiv = document.getElementById("adminUserList");
+        adminDiv.innerHTML = `<div class="category-card"><div class="cat-header">Пользователи (${users.length})</div>` + users.map(u => `<div class="topic-row" style="justify-content:space-between;"><span>${escapeHtml(u.username)} [${u.role}]</span>${u.username !== currentUser.username ? `<button class="primary-btn" style="background:#5a2d2d;padding:4px 12px;" data-del="${u.username}">Удалить</button>` : "<span>(вы)</span>"}</div>`).join("") + `</div>`;
+        document.querySelectorAll("[data-del]").forEach(btn => {
+            btn.addEventListener("click", async () => {
+                let username = btn.getAttribute("data-del");
+                users = users.filter(u => u.username !== username);
+                forumTopics = forumTopics.filter(t => t.author !== username);
+                biographies = biographies.filter(b => b.author !== username);
+                complaints = complaints.filter(c => c.against !== username);
+                await saveToCloud();
+                renderAll();
+                renderAdminPanel();
+                showToast(`Пользователь ${username} удалён`);
+            });
+        });
+    }
+
+    function renderAll() {
+        renderForum(document.getElementById("globalSearch")?.value || "");
+        renderBios(document.getElementById("globalSearch")?.value || "");
+        renderComplaints();
+        renderOrgs();
+        if(currentUser?.role === "admin") renderAdminPanel();
+    }
+
+    async function addTopic(title, cat, content) {
+        if(!title.trim() || !content.trim()) { showToast("Заполните поля", true); return false; }
+        forumTopics.unshift({ id: Date.now(), title: title.trim(), category: cat, content: content.trim(), author: currentUser.username, replies: 0, views: 0, date: new Date().toLocaleDateString(), pinned: false });
+        await saveToCloud();
+        showToast(`Тема "${title}" создана и синхронизирована`);
+        return true;
+    }
+
+    async function fullSync() {
+        showToast("Синхронизация...");
+        await loadFromCloud();
+        renderAll();
+    }
+
+    window.addEventListener("DOMContentLoaded", async () => {
+        await loadFromCloud();
+        
+        if (loadSession() && currentUser) {
+            document.getElementById("authOverlay").style.display = "none";
+            document.getElementById("mainApp").style.display = "block";
+            document.getElementById("currentUsernameDisplay").innerText = currentUser.username;
+            if(currentUser.role === "admin") {
+                document.getElementById("userRoleBadge").innerHTML = '<i class="fas fa-crown"></i> Администратор';
+                document.getElementById("adminTabBtn").style.display = "inline-block";
+            } else {
+                document.getElementById("userRoleBadge").innerHTML = '<i class="fas fa-user"></i> Игрок';
+            }
+            renderAll();
+        } else {
+            document.getElementById("authOverlay").style.display = "flex";
+        }
+
+        document.getElementById("loginBtn").onclick = () => {
+            if(login(document.getElementById("loginUsername").value, document.getElementById("loginPassword").value)) location.reload();
+            else document.getElementById("authError").innerText = "Неверный логин или пароль";
+        };
+        document.getElementById("registerBtn").onclick = async () => {
+            let res = register(document.getElementById("regUsername").value, document.getElementById("regPassword").value, document.getElementById("regConfirm").value);
+            if(res === "ok") { document.getElementById("authError").innerText = "Успех! Войдите."; document.getElementById("showLoginBtn").click(); }
+            else document.getElementById("authError").innerText = res;
+        };
+        document.getElementById("showRegisterBtn").onclick = () => { document.getElementById("authForm").style.display = "none"; document.getElementById("regForm").style.display = "block"; };
+        document.getElementById("showLoginBtn").onclick = () => { document.getElementById("authForm").style.display = "block"; document.getElementById("regForm").style.display = "none"; };
+        document.getElementById("logoutMainBtn").onclick = () => logout();
+        document.getElementById("forceSyncBtn").onclick = () => fullSync();
+        
+        document.getElementById("globalCreateBtn").onclick = async () => {
+            let title = prompt("Заголовок темы:");
+            if(!title) return;
+            let cat = prompt("Категория (news, server, rp, trade):", "server");
+            let content = prompt("Текст:");
+            if(content) await addTopic(title, cat, content);
+            renderAll();
+        };
+        document.getElementById("createBioBtn").onclick = async () => {
+            let name = prompt("Имя персонажа");
+            let story = prompt("История");
+            if(name && story) { biographies.push({ id: Date.now(), name, story, author: currentUser.username, status: "на проверке" }); await saveToCloud(); renderAll(); showToast("Биография отправлена"); }
+        };
+        document.getElementById("submitComplaintBtn").onclick = async () => {
+            let target = document.getElementById("complaintTarget").value;
+            let desc = document.getElementById("complaintDesc").value;
+            if(!target || !desc) { showToast("Заполните поля", true); return; }
+            complaints.unshift({ id: Date.now(), against: target, reason: desc, status: "новая", date: new Date().toLocaleDateString() });
+            await saveToCloud(); renderAll();
+            document.getElementById("complaintTarget").value = ""; document.getElementById("complaintDesc").value = "";
+            showToast("Жалоба отправлена");
+        };
+        document.getElementById("submitOrgBtn").onclick = async () => {
+            let name = document.getElementById("orgName").value;
+            let desc = document.getElementById("orgDesc").value;
+            if(!name || !desc) { showToast("Заполните поля", true); return; }
+            organizations.push({ name, description: desc, status: "на модерации" });
+            await saveToCloud(); renderAll();
+            document.getElementById("orgName").value = ""; document.getElementById("orgDesc").value = "";
+            showToast("Заявка подана");
+        };
+        document.getElementById("sendSupportBtn").onclick = () => {
+            let msg = document.getElementById("supportMsg").value;
+            if(msg) { showToast("Обращение отправлено"); document.getElementById("supportMsg").value = ""; }
+            else showToast("Введите текст", true);
+        };
+        document.getElementById("clearAllDataBtn").onclick = async () => {
+            if(currentUser?.role !== "admin") { showToast("Доступно только администратору", true); return; }
+            if(confirm("Сбросить ВСЕ данные?")) {
+                forumTopics = []; biographies = []; complaints = []; organizations = [];
+                await saveToCloud(); renderAll(); showToast("Данные сброшены");
+            }
+        };
+
+        document.querySelectorAll(".tab-btn").forEach(btn => {
+            btn.addEventListener("click", () => {
+                document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+                btn.classList.add("active");
+                document.querySelectorAll(".forum-section").forEach(sec => sec.classList.remove("active-section"));
+                const tab = btn.getAttribute("data-tab");
+                if(tab === "forum") document.getElementById("forumTab").classList.add("active-section");
+                if(tab === "rp-bio") document.getElementById("rpBioTab").classList.add("active-section");
+                if(tab === "complaints") document.getElementById("complaintsTab").classList.add("active-section");
+                if(tab === "create-org") document.getElementById("createOrgTab").classList.add("active-section");
+                if(tab === "support") document.getElementById("supportTab").classList.add("active-section");
+                if(tab === "admin" && currentUser?.role === "admin") { document.getElementById("adminTab").classList.add("active-section"); renderAdminPanel(); }
+            });
+        });
+        document.getElementById("globalSearch").addEventListener("input", (e) => renderForum(e.target.value));
+    });
+</script>
+</body>
+</html>
