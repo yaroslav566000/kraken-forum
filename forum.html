@@ -127,11 +127,9 @@
 <div id="toastMsg" class="success-toast"></div>
 
 <script>
-    // ==================== НОВЫЕ ДАННЫЕ ====================
     const GIST_RAW_URL = 'https://gist.githubusercontent.com/yaroslav566000/8bc4a05d2941f3737da648599a14f7ed/raw/c22afb1c1e461b37c20d5f3af073b6c047fdf7dc/kraken_data.json';
     const GIST_API_URL = 'https://api.github.com/gists/8bc4a05d2941f3737da648599a14f7ed';
     const GITHUB_TOKEN = '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';
-    // =====================================================
 
     let currentUser = null;
     let users = [];
@@ -152,7 +150,7 @@
         const text = document.getElementById("syncStatusText");
         if (status === 'online') {
             dot.className = "sync-status online";
-            text.innerText = message || "Синхронизирано";
+            text.innerText = message || "Синхронизировано";
         } else if (status === 'syncing') {
             dot.className = "sync-status syncing";
             text.innerText = message || "Синхронизация...";
