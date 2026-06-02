@@ -95,7 +95,7 @@
     </div>
 
     <div class="sync-bar">
-        <div><i class="fab fa-github" style="color: #2c7da0;"></i> <strong>Синхронизация через GitHub</strong></div>
+        <div><i class="fab fa-github" style="color: #2c7da0;"></i> <strong>Синхронизация через GitHub Gist</strong></div>
         <div><span class="sync-status" id="syncStatusDot"></span> <span id="syncStatusText">Проверка...</span></div>
         <button class="primary-btn" id="forceSyncBtn" style="background:#2c7da0; padding:0.4rem 1rem;"><i class="fas fa-sync-alt"></i> Синхронизировать</button>
     </div>
@@ -122,15 +122,17 @@
     <div id="adminTab" class="forum-section">
         <div class="category-card"><div class="cat-header"><i class="fas fa-users"></i> Управление пользователями</div><div id="adminUserList"></div><button class="primary-btn" id="clearAllDataBtn" style="background:#5a2d2d; margin:1rem;">СБРОС ВСЕХ ДАННЫХ</button></div>
     </div>
-    <footer><i class="fas fa-octopus"></i> Kraken Russia | Данные синхронизируются через GitHub</footer>
+    <footer><i class="fas fa-octopus"></i> Kraken Russia | Данные синхронизируются через GitHub Gist</footer>
 </div>
 <div id="toastMsg" class="success-toast"></div>
 
 <script>
-    const GIST_RAW_URL = 'https://gist.githubusercontent.com/yaroslav566000/b9750ba7f8527016bbf0101deef1c1fc/raw/223139d74e7f7d793113f257a36030448516ff3a/kraken_data.json';
-    const GIST_API_URL = 'https://api.github.com/gists/b9750ba7f8527016bbf0101deef1c1fc';
-    const GITHUB_TOKEN = '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';
-    
+    // ==================== НОВЫЕ ДАННЫЕ ====================
+    const GIST_RAW_URL = 'https://gist.githubusercontent.com/yaroslav566000/8bc4a05d2941f3737da648599a14f7ed/raw/c22afb1c1e461b37c20d5f3af073b6c047fdf7dc/kraken_data.json';
+    const GIST_API_URL = 'https://api.github.com/gists/8bc4a05d2941f3737da648599a14f7ed';
+    const GITHUB_TOKEN = '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';
+    // =====================================================
+
     let currentUser = null;
     let users = [];
     let forumTopics = [], biographies = [], complaints = [], organizations = [];
@@ -150,7 +152,7 @@
         const text = document.getElementById("syncStatusText");
         if (status === 'online') {
             dot.className = "sync-status online";
-            text.innerText = message || "Синхронизировано";
+            text.innerText = message || "Синхронизирано";
         } else if (status === 'syncing') {
             dot.className = "sync-status syncing";
             text.innerText = message || "Синхронизация...";
@@ -185,22 +187,22 @@
             });
             
             if (updateResponse.ok) {
-                updateSyncStatus('online', 'Синхронизирано');
-                showToast("✅ Збережено в Gist");
+                updateSyncStatus('online', 'Синхронизировано');
+                showToast("✅ Данные сохранены в Gist");
                 return true;
             } else {
-                throw new Error("Помилка оновлення");
+                throw new Error("Ошибка обновления");
             }
         } catch(e) {
-            console.error("Помилка збереження в Gist:", e);
+            console.error("Ошибка сохранения в Gist:", e);
             saveToLocal();
-            showToast("⚠️ Збережено локально", true);
+            showToast("⚠️ Данные сохранены локально", true);
             return false;
         }
     }
 
     async function loadFromGist() {
-        updateSyncStatus('syncing', 'Завантаження...');
+        updateSyncStatus('syncing', 'Загрузка...');
         try {
             const response = await fetch(GIST_RAW_URL);
             if (response.ok) {
@@ -211,15 +213,15 @@
                 if (data.complaints) complaints = data.complaints;
                 if (data.organizations) organizations = data.organizations;
                 localStorage.setItem("kr_all_data", JSON.stringify(data));
-                updateSyncStatus('online', 'Синхронізовано');
-                showToast("✅ Дані завантажено з Gist");
+                updateSyncStatus('online', 'Синхронизировано');
+                showToast("✅ Данные загружены из Gist");
             } else {
                 loadFromLocal();
-                updateSyncStatus('online', 'Локальні дані');
+                updateSyncStatus('online', 'Локальные данные');
             }
         } catch(e) {
             loadFromLocal();
-            updateSyncStatus('online', 'Локальні дані');
+            updateSyncStatus('online', 'Локальные данные');
         }
         
         if (!users.find(u => u.username === "Neverlost_Testing")) {
