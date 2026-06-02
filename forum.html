@@ -175,6 +175,41 @@
         }
     }
 
+    async function saveToGist() {
+        if (!GITHUB_TOKEN) return false;
+        updateSyncStatus('syncing', 'Сохранение...');
+        const allData = { users, forumTopics, biographies, complaints, organizations, lastUpdate: Date.now() };
+        const content = JSON.stringify(allData, null, 2);
+        
+        try {
+            const getResponse = await fetch(GIST_API_URL, {
+                headers: { 'Authorization': `token ${GITHUB_TOKEN}` }
+            });
+            const gistData = await getResponse.json();
+            const filename = Object.keys(gistData.files)[0];
+            const currentSha = gistData.files[filename].sha;
+            
+            await fetch(GIST_API_URL, {
+                method: 'PATCH',
+                headers: {
+                    'Authorization': `token ${GITHUB_TOKEN}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    files: { [filename]: { content: content, sha: currentSha } }
+                })
+            });
+            updateSyncStatus('online', 'Синхронизировано');
+            showToast("✅ Данные сохранены в Gist");
+            return true;
+        } catch(e) {
+            console.error("Ошибка сохранения в Gist:", e);
+            saveToLocal();
+            showToast("⚠️ Данные сохранены локально", true);
+            return false;
+        }
+    }
+
     async function loadFromGist() {
         updateSyncStatus('syncing', 'Загрузка...');
         try {
@@ -188,9 +223,10 @@
                 if (data.organizations) organizations = data.organizations;
                 localStorage.setItem("kr_all_data", JSON.stringify(data));
                 updateSyncStatus('online', 'Синхронизировано');
-                showToast("✅ Данные загружены");
+                showToast("✅ Данные загружены из Gist");
             } else {
                 loadFromLocal();
+                updateSyncStatus('online', 'Локальные данные');
             }
         } catch(e) {
             loadFromLocal();
@@ -220,40 +256,6 @@
             await saveToGist();
         }
         return true;
-    }
-
-    async function saveToGist() {
-        if (!GITHUB_TOKEN) return false;
-        updateSyncStatus('syncing', 'Сохранение...');
-        const allData = { users, forumTopics, biographies, complaints, organizations, lastUpdate: Date.now() };
-        const content = JSON.stringify(allData, null, 2);
-        
-        try {
-            const getResponse = await fetch(GIST_API_URL, {
-                headers: { 'Authorization': `token ${GITHUB_TOKEN}` }
-            });
-            const gistData = await getResponse.json();
-            const filename = Object.keys(gistData.files)[0];
-            const currentSha = gistData.files[filename].sha;
-            
-            await fetch(GIST_API_URL, {
-                method: 'PATCH',
-                headers: {
-                    'Authorization': `token ${GITHUB_TOKEN}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    files: { [filename]: { content: content, sha: currentSha } }
-                })
-            });
-            updateSyncStatus('online', 'Синхронизировано');
-            showToast("✅ Данные сохранены");
-            return true;
-        } catch(e) {
-            saveToLocal();
-            showToast("⚠️ Локальное сохранение", true);
-            return false;
-        }
     }
 
     function saveToLocal() {
@@ -386,7 +388,7 @@
         if(!title.trim() || !content.trim()) { showToast("Заполните поля", true); return false; }
         forumTopics.unshift({ id: Date.now(), title: title.trim(), category: cat, content: content.trim(), author: currentUser.username, replies: 0, views: 0, date: new Date().toLocaleDateString(), pinned: false });
         await saveToGist();
-        showToast(`Тема "${title}" создана`);
+        showToast(`Тема "${title}" создана и сохранена в Gist`);
         renderAll();
         return true;
     }
