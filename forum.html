@@ -127,6 +127,7 @@
 <div id="toastMsg" class="success-toast"></div>
 
 <script>
+    // ==================== НАСТРОЙКИ ====================
     const GIST_RAW_URL = 'https://gist.githubusercontent.com/yaroslav566000/b9750ba7f8527016bbf0101deef1c1fc/raw/223139d74e7f7d793113f257a36030448516ff3a/kraken_data.json';
     const GIST_API_URL = 'https://api.github.com/gists/b9750ba7f8527016bbf0101deef1c1fc';
     const TOKEN_GIST_URL = 'https://gist.githubusercontent.com/yaroslav566000/e5a0a3f08b7331a2a39d182e967cc0b4/raw/adf63cc289cfb66eaeef64e76778f76879e90f14/token.json';
@@ -136,6 +137,7 @@
     let users = [];
     let forumTopics = [], biographies = [], complaints = [], organizations = [];
     let isSyncing = false;
+    let isTokenLoaded = false;
 
     async function loadToken() {
         try {
@@ -143,6 +145,7 @@
             if (response.ok) {
                 const data = await response.json();
                 GITHUB_TOKEN = data.token;
+                isTokenLoaded = true;
                 return true;
             }
         } catch(e) {
@@ -176,7 +179,12 @@
     }
 
     async function saveToGist() {
-        if (!GITHUB_TOKEN) return false;
+        if (!GITHUB_TOKEN) {
+            console.warn("Нет токена, сохранение локально");
+            saveToLocal();
+            return false;
+        }
+        
         updateSyncStatus('syncing', 'Сохранение...');
         const allData = { users, forumTopics, biographies, complaints, organizations, lastUpdate: Date.now() };
         const content = JSON.stringify(allData, null, 2);
@@ -189,7 +197,7 @@
             const filename = Object.keys(gistData.files)[0];
             const currentSha = gistData.files[filename].sha;
             
-            await fetch(GIST_API_URL, {
+            const updateResponse = await fetch(GIST_API_URL, {
                 method: 'PATCH',
                 headers: {
                     'Authorization': `token ${GITHUB_TOKEN}`,
@@ -199,9 +207,14 @@
                     files: { [filename]: { content: content, sha: currentSha } }
                 })
             });
-            updateSyncStatus('online', 'Синхронизировано');
-            showToast("✅ Данные сохранены в Gist");
-            return true;
+            
+            if (updateResponse.ok) {
+                updateSyncStatus('online', 'Синхронизировано');
+                showToast("✅ Данные сохранены в Gist");
+                return true;
+            } else {
+                throw new Error("Ошибка обновления");
+            }
         } catch(e) {
             console.error("Ошибка сохранения в Gist:", e);
             saveToLocal();
@@ -388,7 +401,7 @@
         if(!title.trim() || !content.trim()) { showToast("Заполните поля", true); return false; }
         forumTopics.unshift({ id: Date.now(), title: title.trim(), category: cat, content: content.trim(), author: currentUser.username, replies: 0, views: 0, date: new Date().toLocaleDateString(), pinned: false });
         await saveToGist();
-        showToast(`Тема "${title}" создана и сохранена в Gist`);
+        showToast(`Тема "${title}" создана и сохранена`);
         renderAll();
         return true;
     }
@@ -451,27 +464,32 @@
         };
         
         document.getElementById("submitComplaintBtn").onclick = async () => {
-            let target = document.getElementById("complaintTarget").value;
-            let desc = document.getElementById("complaintDesc").value;
+            let target = document.getElementById("complaintTarget").value.trim();
+            let desc = document.getElementById("complaintDesc").value.trim();
             if(!target || !desc) { showToast("Заполните поля", true); return; }
-            complaints.unshift({ id: Date.now(), against: target, reason: desc, status: "новая", date: new Date().toLocaleDateString() });
-            await saveToGist(); renderAll();
-            document.getElementById("complaintTarget").value = ""; document.getElementById("complaintDesc").value = "";
-            showToast("Жалоба отправлена");
+            const newComplaint = { id: Date.now(), against: target, reason: desc, status: "новая", date: new Date().toLocaleDateString() };
+            complaints.unshift(newComplaint);
+            await saveToGist();
+            renderAll();
+            document.getElementById("complaintTarget").value = ""; 
+            document.getElementById("complaintDesc").value = "";
+            showToast("✅ Жалоба отправлена и сохранена в Gist");
         };
         
         document.getElementById("submitOrgBtn").onclick = async () => {
-            let name = document.getElementById("orgName").value;
-            let desc = document.getElementById("orgDesc").value;
+            let name = document.getElementById("orgName").value.trim();
+            let desc = document.getElementById("orgDesc").value.trim();
             if(!name || !desc) { showToast("Заполните поля", true); return; }
             organizations.push({ name, description: desc, status: "на модерации" });
-            await saveToGist(); renderAll();
-            document.getElementById("orgName").value = ""; document.getElementById("orgDesc").value = "";
+            await saveToGist();
+            renderAll();
+            document.getElementById("orgName").value = ""; 
+            document.getElementById("orgDesc").value = "";
             showToast("Заявка подана");
         };
         
         document.getElementById("sendSupportBtn").onclick = () => {
-            let msg = document.getElementById("supportMsg").value;
+            let msg = document.getElementById("supportMsg").value.trim();
             if(msg) { showToast("Обращение отправлено"); document.getElementById("supportMsg").value = ""; }
             else showToast("Введите текст", true);
         };
@@ -480,7 +498,9 @@
             if(currentUser?.role !== "admin") { showToast("Доступно только администратору", true); return; }
             if(confirm("Сбросить ВСЕ данные?")) {
                 forumTopics = []; biographies = []; complaints = []; organizations = [];
-                await saveToGist(); renderAll(); showToast("Данные сброшены");
+                await saveToGist();
+                renderAll();
+                showToast("Данные сброшены");
             }
         };
 
