@@ -129,7 +129,7 @@
 <script>
     const GIST_RAW_URL = 'https://gist.githubusercontent.com/yaroslav566000/8bc4a05d2941f3737da648599a14f7ed/raw/c22afb1c1e461b37c20d5f3af073b6c047fdf7dc/kraken_data.json';
     const GIST_API_URL = 'https://api.github.com/gists/8bc4a05d2941f3737da648599a14f7ed';
-    const GITHUB_TOKEN = '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';
+    const GITHUB_TOKEN = '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';
 
     let currentUser = null;
     let users = [];
@@ -169,7 +169,17 @@
             const getResponse = await fetch(GIST_API_URL, {
                 headers: { 'Authorization': `token ${GITHUB_TOKEN}` }
             });
+            
+            if (!getResponse.ok) {
+                throw new Error(`HTTP ${getResponse.status}`);
+            }
+            
             const gistData = await getResponse.json();
+            
+            if (!gistData.files || Object.keys(gistData.files).length === 0) {
+                throw new Error("Файлы не найдены в Gist");
+            }
+            
             const filename = Object.keys(gistData.files)[0];
             const currentSha = gistData.files[filename].sha;
             
@@ -189,12 +199,13 @@
                 showToast("✅ Данные сохранены в Gist");
                 return true;
             } else {
-                throw new Error("Ошибка обновления");
+                throw new Error("Ошибка обновления Gist");
             }
         } catch(e) {
             console.error("Ошибка сохранения в Gist:", e);
             saveToLocal();
             showToast("⚠️ Данные сохранены локально", true);
+            updateSyncStatus('online', 'Локальное сохранение');
             return false;
         }
     }
